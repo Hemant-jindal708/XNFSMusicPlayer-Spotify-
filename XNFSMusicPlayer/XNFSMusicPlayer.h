@@ -1,8 +1,8 @@
 // Macro definitions for XNFSMusicPlayer
 #pragma once
 #pragma warning(disable:4800 4244 4305)
-#include "bass.h"
 #include "stdafx.h"
+#include "bass.h"
 #include "stdio.h"
 
 #ifdef GAME_MW
@@ -19,7 +19,7 @@
 
 // TODO - implement proper versioning
 #define BUILD_VER_MAJOR 1
-#define BUILD_VER_MINOR 12
+#define BUILD_VER_MINOR 16
 
 #define FILE_TYPE_TRACKER 1
 #define FILE_TYPE_STREAM 2

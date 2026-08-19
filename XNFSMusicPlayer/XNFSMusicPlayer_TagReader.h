@@ -1,8 +1,8 @@
 #pragma once
 #include <stdio.h>
 #include <string.h>
-#include "bass.h"
 #include "XNFSMusicPlayer.h"
+#include "bass.h"
 
 #define CHUNKID_RIFF_INFO 0x4F464E49
 #define CHUNKID_RIFF_LIST 0x5453494C

@@ -3,7 +3,8 @@
 // TODO: Common code abstraction
 // since 1.8 WIP: Carbon port, code splitting // 03/2018
 // 11/2021 - dropped VGMStream support
-
+#include <windows.h>
+#include <stdio.h>
 #ifdef GAME_MW
 #include "XNFSMusicPlayer\XNFSMusicPlayer_MW.h"
 #endif

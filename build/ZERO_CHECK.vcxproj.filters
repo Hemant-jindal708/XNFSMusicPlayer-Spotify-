@@ -1,0 +1,13 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <CustomBuild Include="D:\dev\MODs Made\NFS MW 2005 Spotify MOD\XNFSMusicPlayer-Spotify-\build\CMakeFiles\be13b21ddb8c4fa64282700f22c61aa9\generate.stamp.rule">
+      <Filter>CMake Rules</Filter>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="CMake Rules">
+      <UniqueIdentifier>{4EADEA82-B3F5-3A68-84B3-B68BC7FEB369}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

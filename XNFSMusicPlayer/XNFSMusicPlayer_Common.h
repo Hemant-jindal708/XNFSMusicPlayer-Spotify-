@@ -5,6 +5,7 @@
 #include "XNFSMusicPlayer.h"
 #include "XNFSMusicPlayer_TagReader.h"
 #include "XNFSMusicPlayer_StreamPusher.h"
+#include "SpotifyController.h"
 
 void(__stdcall *EAXSound_Update)(float Something) = (void(__stdcall*)(float))EAXSOUNDUPDATE_ADDRESS;
 unsigned int(__cdecl *PATHI_queuenode)(void* PATHTRACK) = (unsigned int(__cdecl*)(void*))QUEUENODE_ADDRESS;
@@ -20,6 +21,7 @@ void SetNoTracksWarning();
 int DoFilePathsStruct(char* TxtFile);
 int HotkeyUpdate();
 bool CheckIfFileExists(bool bSilent, const char* FileName);
+void DisplaySpotifyMetadata();  // Spotify UI function
 
 // Some functions that need to be called.
 unsigned int somefunction = SOMEFUNCTION1_ADDRESS;
@@ -71,6 +73,7 @@ unsigned int PreviousEAX;
 float VolMultiplier = 0.01;
 float LastVolume = 0.22; // Adjusted to the very first volume the game sets (to reduce pops).
 unsigned int hkTrackSwitch = VK_MEDIA_NEXT_TRACK;
+int hkTrackSwitchPrev = VK_MEDIA_PREV_TRACK;
 
 DWORD music, oldhandle, PlaySync, LoopSync, MetaSync; // BASS' stream/music/sync handles.
 BASS_CHANNELINFO ChanInfo;
@@ -90,6 +93,7 @@ unsigned int StartPursuitMusicCaveExit = STARTPURSUITMUSEXIT_ADDRESS;
 unsigned int StartAmbienceCaveExit = STARTAMBIANCEEXIT_ADDRESS;
 
 bool bOnlineChyron = 0;
+bool bSpotifyEnabled = 0; // Spotify integration flag
 
 PathfinderStruct NullPathfinder;
 TrackStruct *track, *overrides;
@@ -106,12 +110,34 @@ unsigned int QueueNodeInterceptor(void* PATHTRACK)
 void __stdcall SoundUpdater(float Something)
 {
 	EAXSound_Update(Something);
-	if (!UpdateLength)
-		UpdateLength = (unsigned int)(Something * 1000);
-	if (bBASSCreated)
-		if (!BASS_Update(UpdateLength))
-			XNFS_printf(1, "%s: Error updating BASS with game thread: BASS Error %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+	
+	if (bUseGameThread)
+	{
+		if (!UpdateLength)
+			UpdateLength = (unsigned int)(Something * 1000);
+		if (bBASSCreated)
+			if (!BASS_Update(UpdateLength))
+				XNFS_printf(1, "%s: Error updating BASS with game thread: BASS Error %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+	}
 	HotkeyUpdate();
+	
+	// Periodic Spotify metadata update
+	if (bSpotifyEnabled && IsSpotifyInitialized())
+	{
+		static DWORD lastSpotifyUpdate = 0;
+		DWORD currentTime = GetTickCount();
+		if (currentTime - lastSpotifyUpdate >= 5000) // 5 seconds
+		{
+			lastSpotifyUpdate = currentTime;
+			SpotifyUpdateMetadata();  // Fetch current track info from Spotify
+		}
+
+		// Remove gameState check so UI popup attempts to show everywhere
+		if (SpotifyHasTrackChanged())
+		{
+			DisplaySpotifyMetadata();  // Display it safely in the game UI
+		}
+	}
 }
 
 void LoadFileInBuffer(void* Buffer, const char* FilePath, unsigned int FileSize)
@@ -323,13 +349,22 @@ void _declspec(naked) PauseChannelCave()
 	}
 	if (PauseChannel == 1)
 	{
-		if (BASS_ChannelIsActive(music) == BASS_ACTIVE_PLAYING)
-			if (!BASS_ChannelPause(music))
-				XNFS_printf(2, "%s: Error pausing channel (1) (handle: music): BASS Error %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
-		if (bInteractiveMode)
-			if (BASS_ChannelIsActive(oldhandle) == BASS_ACTIVE_PLAYING)
-				if (!BASS_ChannelPause(oldhandle))
-					XNFS_printf(1, "%s: Error pausing channel (1) during interactive mode (handle: oldhandle): BASS Error %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+		// Use Spotify if available, otherwise fall back to BASS
+		if (bSpotifyEnabled && IsSpotifyInitialized())
+		{
+			SpotifyPause();
+			XNFS_printf(2, "%s: Spotify pause command sent\n", PRINT_TYPE_INFO);
+		}
+		else
+		{
+			if (BASS_ChannelIsActive(music) == BASS_ACTIVE_PLAYING)
+				if (!BASS_ChannelPause(music))
+					XNFS_printf(2, "%s: Error pausing channel (1) (handle: music): BASS Error %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+			if (bInteractiveMode)
+				if (BASS_ChannelIsActive(oldhandle) == BASS_ACTIVE_PLAYING)
+					if (!BASS_ChannelPause(oldhandle))
+						XNFS_printf(1, "%s: Error pausing channel (1) during interactive mode (handle: oldhandle): BASS Error %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+		}
 		//bStopNodeQueueing = 1;
 	}
 	_asm
@@ -348,12 +383,21 @@ void _declspec(naked) ResumeChannelCave()
 	}
 	if (ResumeChannel == 1 && ((bPlayedAtLeastOnce || bPlayedInteractiveAtLeastOnce)) && !IS_GAME_PAUSED)
 	{
-		if (!BASS_ChannelPlay(music, FALSE))
-			XNFS_printf(1, "%s: Error resuming channel (handle: music, restart: FALSE): BASS Error: %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
-		//bStopNodeQueueing = 0;
-		if (BASS_ChannelIsActive(music) == BASS_ACTIVE_STOPPED)
-			if (!BASS_ChannelPlay(music, TRUE))
-				XNFS_printf(1, "%s: Error resuming channel (handle: music, restart: TRUE): BASS Error: %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+		// Use Spotify if available, otherwise fall back to BASS
+		if (bSpotifyEnabled && IsSpotifyInitialized())
+		{
+			SpotifyPlay();
+			XNFS_printf(2, "%s: Spotify play command sent\n", PRINT_TYPE_INFO);
+		}
+		else
+		{
+			if (!BASS_ChannelPlay(music, FALSE))
+				XNFS_printf(1, "%s: Error resuming channel (handle: music, restart: FALSE): BASS Error: %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+			//bStopNodeQueueing = 0;
+			if (BASS_ChannelIsActive(music) == BASS_ACTIVE_STOPPED)
+				if (!BASS_ChannelPlay(music, TRUE))
+					XNFS_printf(1, "%s: Error resuming channel (handle: music, restart: TRUE): BASS Error: %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
+		}
 	}
 	_asm
 	{
@@ -632,6 +676,34 @@ int BASSPlayInteractiveQueue(unsigned int NodeID)
 
 int BASSPlayChannel(int something1, unsigned int something2, int something3, int something4, unsigned int something5) // FIXME: change ambiguous name...
 {
+	if (bSpotifyEnabled && IsSpotifyInitialized())
+	{
+		bool isNewTrack = false;
+		if (bEnableInteractiveNoding && CheckIfInteractiveEventID(MusicID))
+		{
+			if (!bInteractiveMode)
+			{
+				isNewTrack = true;
+				bInteractiveMode = 1;
+			}
+		}
+		else
+		{
+			isNewTrack = true;
+			bInteractiveMode = 0;
+		}
+
+		if (isNewTrack)
+		{
+			SpotifyPlay();
+		}
+		
+		bPlayedAtLeastOnce = 1;
+		if (PlayCounter == -1) PlayCounter = 0x001;
+		PlayCounter += 0x100;
+		return PlayCounter;
+	}
+
 	if (bIsVolumeSliding)
 		if (!BASS_ChannelSlideAttribute(music, BASS_ATTRIB_VOL, 1.0, 0))
 			XNFS_printf(1, "%s: Error disabling volume attribute sliding during BASSPlayChannel (handle: music): BASS Error: %d\n", PRINT_TYPE_ERROR, BASS_ErrorGetCode());
@@ -742,6 +814,8 @@ int BASSDestroy()
 	PlayCounter = -1;
 	return 1;
 }
+
+DWORD WINAPI StartSpotifyBackground(LPVOID lpParam);
 
 int BASSCreate()
 {
@@ -891,15 +965,7 @@ int AppendOverridesAndFree(unsigned int index_from)
 	return 0;
 }
 
-DWORD WINAPI TrackSwitchHotkeyThread()
-{
-	while (1)
-	{
-		Sleep(1);
-		HotkeyUpdate();
-	}
-	return 0;
-}
+
 
 // 11/2021. - support for music during initial setup / installation
 int SetupInstallMusic(const char* MusicFileName)
@@ -1149,6 +1215,54 @@ void M3UPathCheck(const char* M3UFile, const char* InPath, char* OutPath)
 //		injector::MakeNOP(((unsigned int)(&BASS_Init) - 0x666A), 2, true);
 //}
 
+DWORD WINAPI StartSpotifyBackground(LPVOID /*lpParam*/)
+{
+	try
+	{
+		// Wait until the game engine has fully initialized the audio system.
+		// This ensures we do not race with the game's startup sequence (which causes crashes).
+		while (!bBASSCreated)
+		{
+			Sleep(100);
+		}
+		
+		// Wait until the game reaches the FrontEnd (state 3) or InGame (state 6).
+		// This prevents WinSock/Curl from crashing the game engine during its fragile early boot phase!
+		unsigned int gameState = 0;
+		while (gameState != 3 && gameState != 6)
+		{
+			Sleep(500);
+			gameState = *(unsigned int*)THEGAMEFLOWMANAGER_ADDRESS;
+		}
+
+		Sleep(2000); // Give the FrontEnd a couple of seconds to settle
+
+		if (!bSpotifyEnabled)
+			return 0;
+
+		XNFS_printf(1, "%s: Spotify background startup started\n", PRINT_TYPE_INFO);
+		if (SpotifyInit())
+		{
+			XNFS_printf(1, "%s: Spotify background startup complete\n", PRINT_TYPE_INFO);
+		}
+		else
+		{
+			XNFS_printf(1, "%s: Spotify background startup failed. Falling back to local playback.\n", PRINT_TYPE_WARNING);
+			bSpotifyEnabled = 0;
+		}
+	}
+	catch (const std::exception& e)
+	{
+		XNFS_printf(1, "%s: EXCEPTION IN StartSpotifyBackground: %s\n", PRINT_TYPE_ERROR, e.what());
+	}
+	catch (...)
+	{
+		XNFS_printf(1, "%s: UNKNOWN EXCEPTION IN StartSpotifyBackground\n", PRINT_TYPE_ERROR);
+	}
+
+	return 0;
+}
+
 int InitConfig()
 {
 	CIniReader inireader("");
@@ -1184,6 +1298,7 @@ int InitConfig()
 	VolMultiplier = inireader.ReadFloat("Playback", "VolumeMultiplier", 1.0) / (float)100.0;
 	FadeoutTime = inireader.ReadInteger("Playback", "FadeoutTime", 5000);
 	hkTrackSwitch = inireader.ReadInteger("Playback", "TrackSwitchHotkey", VK_MEDIA_NEXT_TRACK);
+	hkTrackSwitchPrev = inireader.ReadInteger("Playback", "TrackSwitchPrevHotkey", VK_MEDIA_PREV_TRACK);
 
 	bUseGameThread = inireader.ReadInteger("GameThread", "UseGameThread", 0);
 	UpdateLength = inireader.ReadInteger("GameThread", "UpdateLength", 500);
@@ -1227,8 +1342,16 @@ int InitConfig()
 	}
 	
 	InitConfig_GameSpecific();
-	if (!bUseGameThread)
-		CreateThread(0, 0, (LPTHREAD_START_ROUTINE)&TrackSwitchHotkeyThread, NULL, 0, NULL);
+	
+	// Initialize Spotify integration asynchronously to avoid doing network work
+	// in the game's loader thread / DllMain startup path.
+	bSpotifyEnabled = inireader.ReadInteger("Spotify", "EnableSpotify", 0);
+	if (bSpotifyEnabled)
+	{
+		XNFS_printf(1, "%s: Spotify integration enabled. Deferring startup to background thread...\n", PRINT_TYPE_INFO);
+		CreateThread(NULL, 0, &StartSpotifyBackground, NULL, 0, NULL);
+	}
+	
 
 	return 1;
 }

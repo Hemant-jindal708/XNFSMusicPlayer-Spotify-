@@ -1,0 +1,3 @@
+D:/dev/MODs Made/NFS MW 2005 Spotify MOD/XNFSMusicPlayer-Spotify-/build/CMakeFiles/XNFSMusicPlayer.dir
+D:/dev/MODs Made/NFS MW 2005 Spotify MOD/XNFSMusicPlayer-Spotify-/build/CMakeFiles/ALL_BUILD.dir
+D:/dev/MODs Made/NFS MW 2005 Spotify MOD/XNFSMusicPlayer-Spotify-/build/CMakeFiles/ZERO_CHECK.dir

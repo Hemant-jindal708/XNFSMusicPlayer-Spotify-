@@ -1,9 +1,13 @@
-# Xan's NFS Music Player
+# Xan's NFS Music Player + Spotify Integration
 
-This is a custom music player replacement and a BASS library interface for NFS.
+This is a custom music player replacement and a BASS library interface for Need for Speed: Most Wanted (2005), now featuring full Spotify support! 
+
+> [!IMPORTANT]
+> **Spotify Premium Recommendation**: It is highly recommended to have a **Spotify Premium** account to use this mod seamlessly. Free accounts may face limitations with API controls, playback, and token management.
 
 ## FEATURES
 
+### Base Features
 - Custom playlist generation - put any number of songs you like!
 - Basic support for M3U playlists!
 - Interactive music playback - you're not missing out on these! You can even modify them to your liking! (requires a bit of skill)
@@ -12,115 +16,83 @@ This is a custom music player replacement and a BASS library interface for NFS.
 - SHOUTcast metadata support - a track changed on the radio? No problem, the Chyron will pop up when it happens!
 - Music looping
 - Per track settings - need to change the song's shown title or change the loop point? You can set that in a separate settings file!
-- A LOT of formats supported:
-  - BASS' natively supported streaming formats: MP3/MP2/MP1/OGG/WAV/AIFF
-  - BASS' natively supported tracker formats (same as XMPlay): mo3/xm/mod/s3m/it/mtm/umx 
-  - BASSFLAC: FLAC
-  - BASSMIDI (only a single soundfont at a time for now :/)
 - Game mastered audio - the game itself controls the music volume, just like its own music player
+
+### Spotify Features ✨ NEW
+- **Stream Spotify Music** - Play any Spotify track in-game instead of local MP3s
+- **Full Playback Control** - Play/pause from game controls  
+- **Track Navigation** - Skip next/previous with media keys
+- **Real-time Metadata Display** - See artist, track, album in game UI
+- **OAuth2 Authentication** - Secure browser-based login
+- **Automatic Token Management** - Tokens refresh automatically
+- **Device Auto-Detection** - Works seamlessly with your computer
 
 ## INSTALLATION
 
-1. Install Visual Studio 2015-2022 x86 Redist (from here: https://aka.ms/vs/17/release/vc_redist.x86.exe ) (SKIP IF ALREADY INSTALLED)
-2. Extract this package to your game's root directory
-3. Start the game and follow the instructions
-4. Do either of following things:
-   1. Make an M3U playlist with your favorite music player and save to scripts\XNFSMusicPlayer\Playlist.m3u
-   2. Open scripts\XNFSMusicPlayer.ini and set PlaylistFile to the path of your M3U file!
+1. Download the latest release `.zip` file from the [Releases page](../../releases).
+2. Install Visual Studio 2015-2022 x86 Redist (from here: https://aka.ms/vs/17/release/vc_redist.x86.exe) - **Skip if already installed**.
+3. Extract the downloaded `.zip` archive.
+4. Copy **all extracted files and folders** and paste them directly into your game's main directory (the folder containing `speed.exe`).
+5. Open `scripts\XNFSMusicPlayer.ini` and ensure `EnableSpotify=1` under the `[Spotify]` section.
 
-NOTE: M3U must be NON-UNICODE! If your path contains Unicode letters, until Unicode paths are implemented, please use non-Unicode paths (don't use special characters).
+## HOW TO USE SPOTIFY STREAMING
+
+To ensure a smooth experience, please follow these steps before launching the game:
+
+1. **Pre-open Spotify**: Open the Spotify desktop app or web player on your computer and start playing any song. This establishes an active playback device for the mod to connect to.
+2. **Launch the Game**: Start Need for Speed: Most Wanted.
+3. **Authentication (First Run Only)**: A browser window will open asking you to log in to Spotify and grant permissions to the mod. Click "Approve".
+4. Return to the game, and the mod will automatically connect to your active Spotify session.
+
+### CONTROLS
+
+You can control Spotify playback directly while driving using your keyboard's media keys:
+
+- **Next Song**: Press the **Media Next Key** (often `Fn + Right Arrow` or a dedicated Next Track button).
+- **Previous Song**: Press the **Media Previous Key** (often `Fn + Left Arrow` or a dedicated Prev Track button).
+- **Play/Pause**: Handled automatically by the game's pause menu, or using your keyboard's Play/Pause media key.
+
+Whenever a track changes, the in-game UI (Chyron) will instantly display the song and artist name!
 
 ## CONFIGURATION
 
-The configuration consists of multiple files:
+The configuration consists of multiple files located in the `scripts\XNFSMusicPlayer\` directory:
 
-1. The main config: XNFSMusicPlayer.ini
-2. Per track settings (default at scripts\XNFSMusicPlayer\PlaylistConfig.ini)
-3. The main playlist (default at scripts\XNFSMusicPlayer\Playlist.m3u)
-4. Node paths (default at scripts\XNFSMusicPlayer\NodePaths.txt) - auto generated upon first time setup
-5. EventID overrides (default at scripts\XNFSMusicPlayer\Overrides.txt) - auto generated upon first time setup
+1. **XNFSMusicPlayer.ini**: The main configuration file.
+2. **spotify_tokens.ini**: Your automatically generated Spotify login tokens. (Delete this file if you need to re-authenticate).
+3. **Playlist.m3u**: The main playlist for local MP3 playback (if Spotify is disabled).
+4. **PlaylistConfig.ini**: Per-track settings.
 
-### 1. MAIN CONFIG
+### Enable/Disable Spotify
+In `scripts\XNFSMusicPlayer.ini` (or `scripts\XNFSMusicPlayer\XNFSMusicPlayer.ini`), you can toggle Spotify support:
+```ini
+[Spotify]
+EnableSpotify=1              ; Set to 1 to enable Spotify, 0 to disable and use local MP3s
+```
 
-In this file, you can set up various settings related to playback. Most of it is explained in the file itself.
+### Debug Logging
+If you encounter issues with Spotify, enable verbose logging to see errors in the console:
+```ini
+[XNFSMusicPlayer]
+VerbosityLevel=3   ; Shows all [Spotify] messages in console
+```
 
-If you have any trouble (hitching, delaying) during playback, this is the file to look at.
+## TROUBLESHOOTING
 
-You can also enable the console log output by changing the VerbosityLevel in case of any errors.
-DO NOT use this if you're on WinXP, it will cause crashes.
-
-This will also cause a crash if you don't have a console attached to the game's window. Use ConsoleAttachment.asi included in the package.
-
-Each of the other config file locations can be changed within this file as well. (in [Playlists])
-
-Example: You can change the playlist file by changing PlaylistFile like this:
-
-`[Playlists]`
-
-`PlaylistFile = D:\MyMusicFolder\MyPlaylist.m3u`
-
-If you wish to restart the first time setup, set `InstallerCompleted` to 0 (and optionally rename/remove the InteractiveMusic folder).
-
-### 2. PER TRACK SETTINGS
-
-This is the file that saves any settings that can be set on a single track.
-Settings include:
-- Looping settings
-- Track title, artist and album (overrides existing metadata in file)
-- Playback mode
-- Tracker amplification level
-
-To create an entry, simply go to the EA Trax settings in the game, and change the playback mode (All, Ingame, Menu). (press left/right)
-
-The track's ID will be appended to the file.
-
-An example configuration exists within the file itself already.
-
-### 3. MAIN PLAYLIST FILE
-
-In here you can place paths to your music files. You can use either a music player that can create M3U files.
-It's simple - one line per file!
-
-You can also comment a line with `#` infront of it. Inline comments are not yet supported.
-
-### 4. NODE PATH FILE
-
-This file contains a table of paths per each NodeID. (NodeID in hex = FilePath)
-It is automatically generated during first time setup if you chose to use interactive music.
-
-The contents of this file depends on the .mpf file (PathFinder definition file).
-
-If you happen to use a different definition file in your game after first time setup, this file will become invalid.
-
-If you wish to extract all of the files from the game, not just interactive specific music, set ScanForAllFiles to 1 in the main config file.
-
-The installer can also generate this and the rest of the files with the PS2's MUS/MPF combo. In this case, be sure to enable ScanForAllFiles.
-
-### 5. EVENTID OVERRIDE FILE
-
-The format of this file is identical to the previous one, except this time the ID matches an EventID.
-
-An EventID is what it says it is - a number to identify an event in the game.
-These numbers are used throughout the game to trigger different music.
-
-The music player is capable of generating its own EventIDs for each track, however there are exceptions;
-As the title screen (and maybe others if you disabled interactive music) has no ties to EA Trax, the EventID must be overrided manually.
-
-In this file you can define which EventID is tied to which file precisely, so if you're missing any, you can add them here.
+- **Spotify initialization failed / No track info displayed**: Make sure you have the Spotify app open and playing a song *before* starting the game. Ensure `EnableSpotify=1` in the configuration.
+- **Tokens keep getting deleted**: Your authorization may have expired or failed. Verify your Spotify Premium subscription and try restarting the game to re-authenticate.
+- **Hotkeys not working**: Ensure your keyboard media keys are working properly in Windows. 
 
 ## TODO list:
-
 - add NFSC chyron handling and calling
 - add NFSC music playback types like MW - IG, FE, AL, OF (instead of just on/off)
 - Unicode
-- installer direct process calling instead of batch scripting - this will allow for percentage overview in the dialog boxes
+- installer direct process calling instead of batch scripting
 - sflist support
-- proper versioning generation & Git integration (this is still very much a mess)
+- proper versioning generation & Git integration
 - integrate BASS FX to restore the LPF effect on SpeedBreaker
 
 ## CREDITS
 
-ThirteenAG - for the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) and the injector and IniReader
-
-[Un4seen Developments Ltd.](http://www.un4seen.com/) (Ian Luck) - BASS library, BASSMIDI and BASSFLAC addons
-
+- ThirteenAG - for the [Ultimate ASI Loader](https://github.com/ThirteenAG/Ultimate-ASI-Loader) and the injector and IniReader
+- [Un4seen Developments Ltd.](http://www.un4seen.com/) (Ian Luck) - BASS library, BASSMIDI and BASSFLAC addons

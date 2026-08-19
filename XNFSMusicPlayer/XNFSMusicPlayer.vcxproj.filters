@@ -90,9 +90,15 @@
     <ClInclude Include="XNFSMusicPlayer_StreamPusher.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="SpotifyController.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\dllmain.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="SpotifyController.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

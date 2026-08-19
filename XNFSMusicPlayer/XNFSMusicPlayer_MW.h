@@ -145,22 +145,65 @@ void __declspec(naked) SetSaveDataPointer()
 	}
 }
 
+static void* g_pFEATrax = nullptr;
+
 void __declspec(naked) NotifyChyronCave()
 {
-	if (!bOnlineChyron)
+	_asm {
+		mov g_pFEATrax, esi
+	}
+	_asm
 	{
-		_asm
-		{
-			mov ecx, esi
-			call SFXObj_PFEATrax_NotifyChyron
-		}
+		mov ecx, esi
+		call SFXObj_PFEATrax_NotifyChyron
 	}
 	_asm
 	jmp NotifyChyronCaveExit
 }
 
+// Display Spotify metadata to the game's chyron/UI
+void DisplaySpotifyMetadata()
+{
+	XNFS_printf(2, "%s: ENTERED DisplaySpotifyMetadata!\n", PRINT_TYPE_INFO);
+
+	const char* trackName = SpotifyGetTrackName();
+	const char* artistName = SpotifyGetArtistName();
+	const char* albumName = SpotifyGetAlbumName();
+
+	// Use [Spotify] tag for the title so players know the source
+	static char titleWithTag[256];
+	snprintf(titleWithTag, sizeof(titleWithTag), "[Spotify] %s", trackName);
+
+	bOnlineChyron = 0; // Temporarily disable block so our manual chyron call passes through
+	XNFS_printf(2, "%s: Displaying Spotify Chyron: %s - %s\n", PRINT_TYPE_INFO, artistName, titleWithTag);
+
+	// The game expects: Title, Album, Artist. 
+	NotifyChyron(titleWithTag, albumName, artistName);
+	bOnlineChyron = 1; // Mark as online source to block game's original metadata
+}
+
 int HotkeyUpdate()
 {
+	// Spotify next/previous track hotkey handling
+	if (bSpotifyEnabled && IsSpotifyInitialized())
+	{
+		// Custom track switch key (defined in ini) for next track
+		if ((GetAsyncKeyState(hkTrackSwitch) & 1))
+		{
+			SpotifyNext();
+			XNFS_printf(2, "%s: Spotify next track command queued\n", PRINT_TYPE_INFO);
+			while ((GetAsyncKeyState(hkTrackSwitch) & 0x8000) > 0) { Sleep(0); }
+		}
+
+		// Custom track switch key (defined in ini) for previous track
+		if ((GetAsyncKeyState(hkTrackSwitchPrev) & 1))
+		{
+			SpotifyPrevious();
+			XNFS_printf(2, "%s: Spotify previous track command queued\n", PRINT_TYPE_INFO);
+			while ((GetAsyncKeyState(hkTrackSwitchPrev) & 0x8000) > 0) { Sleep(0); }
+		}
+	}
+	
 	// handled through ingame actions...
 	/*if ((*(unsigned int*)THEGAMEFLOWMANAGER_ADDRESS == 3) || (*(unsigned int*)THEGAMEFLOWMANAGER_ADDRESS == 6))
 	{
@@ -390,8 +433,7 @@ int InjectCode()
 	injector::WriteMemory<int>(PLAYCHANNELVTABLE_ADDRESS, (int)&BASSPlayChannel, true);
 	injector::MakeJMP(TIMEREMAININGCAVE_ADDRESS, BASSTimeRemainingCave, true);
 
-	if (bUseGameThread)
-		injector::MakeCALL(SOUNDUPDATERCAVE_ADDRESS, SoundUpdater, true);
+	injector::MakeCALL(SOUNDUPDATERCAVE_ADDRESS, SoundUpdater, true);
 
 	injector::MakeJMP(NULLPATHFINDERFUNCJMP_ADDRESS, PATHI_getevent, true);
 

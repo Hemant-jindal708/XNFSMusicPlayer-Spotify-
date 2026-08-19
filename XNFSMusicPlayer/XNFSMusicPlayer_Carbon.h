@@ -844,8 +844,7 @@ int InjectCode()
 	injector::WriteMemory<int>(PLAYCHANNELVTABLE_ADDRESS, (int)&BASSPlayChannel, true);
 	injector::MakeJMP(TIMEREMAININGCAVE_ADDRESS, BASSTimeRemainingCave, true);
 
-	if (bUseGameThread)
-		injector::MakeCALL(SOUNDUPDATERCAVE_ADDRESS, SoundUpdater, true);
+	injector::MakeCALL(SOUNDUPDATERCAVE_ADDRESS, SoundUpdater, true);
 
 	injector::MakeJMP(NULLPATHFINDERFUNCJMP_ADDRESS, PATHI_getevent, true);
 
